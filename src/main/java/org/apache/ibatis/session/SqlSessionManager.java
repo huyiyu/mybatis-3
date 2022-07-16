@@ -31,6 +31,10 @@ import org.apache.ibatis.reflection.ExceptionUtil;
 
 /**
  * @author Larry Meadors
+ * 使用Threadlocal 控制事务的提交与回滚
+ * 如果当前没有SqlSesion,则会生成一个放入ThreadLocal 并且自动提交
+ * 如果当前线程已经有一个SqlSession了,只执行不提交
+ *
  */
 public class SqlSessionManager implements SqlSessionFactory, SqlSession {
 

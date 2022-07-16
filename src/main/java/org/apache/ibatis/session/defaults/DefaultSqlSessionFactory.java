@@ -90,10 +90,19 @@ public class DefaultSqlSessionFactory implements SqlSessionFactory {
   private SqlSession openSessionFromDataSource(ExecutorType execType, TransactionIsolationLevel level, boolean autoCommit) {
     Transaction tx = null;
     try {
+      // 获取环境变量对象
       final Environment environment = configuration.getEnvironment();
+      // 从环境变量对象里面获取TranctionFactory 对象用于创建事务对象
       final TransactionFactory transactionFactory = getTransactionFactoryFromEnvironment(environment);
+      // 调用newTransaction 创建一个事务,默认事务隔离级别不修改,关闭自动提交
       tx = transactionFactory.newTransaction(environment.getDataSource(), level, autoCommit);
+      // 执行器由 configuration 创建。
+      // 三种执行器默认使用simple执行器
+      // batch 执行flush时批量提交 调用connection.addBatch 相关
+      // reuse 会复用已经预编译的语句
+      // 由于cacheEnable 默认开启所以执行器一般先走CacheExecutor
       final Executor executor = configuration.newExecutor(tx, execType);
+      // 创建一个 defaultSqlSession 初始化执行器
       return new DefaultSqlSession(configuration, executor, autoCommit);
     } catch (Exception e) {
       closeTransaction(tx); // may have fetched a connection so lets call close()

@@ -111,14 +111,41 @@ public class Configuration {
   protected boolean useColumnLabel = true;
   protected boolean cacheEnabled = true;
   protected boolean callSettersOnNulls;
+
+  /**
+   * 是否使用反射编译的名称,默认是,
+   * 意味着@Param可以不写,但是要开启参数编译才能保证生效,
+   * 这个错误生产有过惨痛教训,严格规定开发人员一定要写 @Param 注解
+   */
   protected boolean useActualParamName = true;
+  /**
+   * 当出现空数据的时候是否仍然返回对象
+   * 默认false
+   */
   protected boolean returnInstanceForEmptyRow;
+  /**
+   * 是否干掉多余的空格,
+   * 默认false
+   */
   protected boolean shrinkWhitespacesInSql;
 
+  /**
+   * 打印LogId的前缀,在mapperStatment 打印时会显示
+   */
   protected String logPrefix;
+  /**
+   * 日志框架的实现,这里只做展示,没有业务处理
+   */
   protected Class<? extends Log> logImpl;
+  /**
+   * 第三方的vfs实现,这里只做展示,甚至都没有获取
+   */
   protected Class<? extends VFS> vfsImpl;
   protected Class<?> defaultSqlProviderType;
+  /**
+   * 一级缓存的默认范围Session级别,由于spring 环境下大部分查询
+   * 语句不会加事务,所以一级缓存会失效
+   */
   protected LocalCacheScope localCacheScope = LocalCacheScope.SESSION;
   protected JdbcType jdbcTypeForNull = JdbcType.OTHER;
   protected Set<String> lazyLoadTriggerMethods = new HashSet<>(Arrays.asList("equals", "clone", "hashCode", "toString"));
@@ -135,6 +162,9 @@ public class Configuration {
   protected ObjectWrapperFactory objectWrapperFactory = new DefaultObjectWrapperFactory();
 
   protected boolean lazyLoadingEnabled = false;
+  /**
+   * 懒加载条件下使用javasssist代理
+   */
   protected ProxyFactory proxyFactory = new JavassistProxyFactory(); // #224 Using internal Javassist instead of OGNL
 
   protected String databaseId;
@@ -145,9 +175,10 @@ public class Configuration {
    * @see <a href='https://github.com/mybatis/old-google-code-issues/issues/300'>Issue 300 (google code)</a>
    */
   protected Class<?> configurationFactory;
-
+  // 用来存储Mapper 对象的mapper 注册中心
   protected final MapperRegistry mapperRegistry = new MapperRegistry(this);
   protected final InterceptorChain interceptorChain = new InterceptorChain();
+
   protected final TypeHandlerRegistry typeHandlerRegistry = new TypeHandlerRegistry(this);
   protected final TypeAliasRegistry typeAliasRegistry = new TypeAliasRegistry();
   protected final LanguageDriverRegistry languageRegistry = new LanguageDriverRegistry();
@@ -155,11 +186,18 @@ public class Configuration {
   protected final Map<String, MappedStatement> mappedStatements = new StrictMap<MappedStatement>("Mapped Statements collection")
       .conflictMessageProducer((savedValue, targetValue) ->
           ". please check " + savedValue.getResource() + " and " + targetValue.getResource());
+  /**
+   * 基于nameSpace 的Mybatis 二级缓存映射
+   */
   protected final Map<String, Cache> caches = new StrictMap<>("Caches collection");
   protected final Map<String, ResultMap> resultMaps = new StrictMap<>("Result Maps collection");
   protected final Map<String, ParameterMap> parameterMaps = new StrictMap<>("Parameter Maps collection");
   protected final Map<String, KeyGenerator> keyGenerators = new StrictMap<>("Key Generators collection");
 
+  /**
+   * 保存已经解析过的mapper.xml 路径和mapper 接口
+   * 其中 mapper 接口格式 namespace: 开头
+   */
   protected final Set<String> loadedResources = new HashSet<>();
   protected final Map<String, XNode> sqlFragments = new StrictMap<>("XML fragments parsed from previous mappers");
 
@@ -173,6 +211,7 @@ public class Configuration {
    * references a cache bound to another namespace and the value is the
    * namespace which the actual cache is bound to.
    */
+  // 引用了二级缓存的 namespace key 为namespace value 为二级缓存名称
   protected final Map<String, String> cacheRefMap = new HashMap<>();
 
   public Configuration(Environment environment) {
@@ -668,6 +707,7 @@ public class Configuration {
     executorType = executorType == null ? defaultExecutorType : executorType;
     executorType = executorType == null ? ExecutorType.SIMPLE : executorType;
     Executor executor;
+    // 选择合适的执行器默认使用 simple
     if (ExecutorType.BATCH == executorType) {
       executor = new BatchExecutor(this, transaction);
     } else if (ExecutorType.REUSE == executorType) {
@@ -678,6 +718,7 @@ public class Configuration {
     if (cacheEnabled) {
       executor = new CachingExecutor(executor);
     }
+    // 织入拦截器
     executor = (Executor) interceptorChain.pluginAll(executor);
     return executor;
   }

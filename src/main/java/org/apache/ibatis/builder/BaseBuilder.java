@@ -36,6 +36,11 @@ public abstract class BaseBuilder {
   protected final TypeAliasRegistry typeAliasRegistry;
   protected final TypeHandlerRegistry typeHandlerRegistry;
 
+  /**
+   * 通过引用对象指向configuration 共享了
+   * typeAliasRegistry,typeHandlerRegistry
+   * @param configuration 传入的构造参数
+   */
   public BaseBuilder(Configuration configuration) {
     this.configuration = configuration;
     this.typeAliasRegistry = this.configuration.getTypeAliasRegistry();

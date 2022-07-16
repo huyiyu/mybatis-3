@@ -44,12 +44,15 @@ public class GenericTokenParser {
     final StringBuilder builder = new StringBuilder();
     StringBuilder expression = null;
     do {
+
       if (start > 0 && src[start - 1] == '\\') {
-        // this open token is escaped. remove the backslash and continue.
+        //如果 $ 前面有 \ 说明当前opentoken 已经被转义,跳过它
+        // -1 表示截取的内容不包含 \
         builder.append(src, offset, start - offset - 1).append(openToken);
+        // offset 定位到opentoken的位置
         offset = start + openToken.length();
       } else {
-        // found open token. let's search close token.
+        // 有opentoken 并且没有被转义,找openToken 和closeToken 中间的内容作为 expression
         if (expression == null) {
           expression = new StringBuilder();
         } else {
@@ -74,6 +77,7 @@ public class GenericTokenParser {
           builder.append(src, start, src.length - start);
           offset = src.length;
         } else {
+          // 改变 isDynamic的值
           builder.append(handler.handleToken(expression.toString()));
           offset = end + closeToken.length();
         }

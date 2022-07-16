@@ -26,9 +26,9 @@ import org.apache.ibatis.executor.ErrorContext;
 import org.apache.ibatis.session.defaults.DefaultSqlSessionFactory;
 
 /**
- * Builds {@link SqlSession} instances.
- *
- * @author Clinton Begin
+ * 该类用于读取配置文件创建出一个SqlSessionFactory 对象,
+ * build 有两种实现是因为 xmlConfigBuilder 既可以读取字符流也可以读取字节流
+ * 本类仅关注两个Build方法
  */
 public class SqlSessionFactoryBuilder {
 
@@ -44,13 +44,25 @@ public class SqlSessionFactoryBuilder {
     return build(reader, null, properties);
   }
 
+  /**
+   * mybatis SqlSessionFactory创建唯二核心方法,
+   * @param reader configuration.xml 对象的字符流,xpath 通过获取reader 解析XML
+   * @param environment environment 是对应的 environments 中的多套环境的含义
+   * @param properties 可通过properties 配置Mybatis 的一些属性,无需使用默认的configuration.xml 相互替代关系
+   * @return
+   */
   public SqlSessionFactory build(Reader reader, String environment, Properties properties) {
     try {
+      // xmlConfigBuilder 是Mybatis 主配置文件的解析对象,所以这里获得一个reader,
+      // 作为入参,environment 和properties 不是必传的,
       XMLConfigBuilder parser = new XMLConfigBuilder(reader, environment, properties);
       return build(parser.parse());
     } catch (Exception e) {
+      // 当出现错误时会从ErrorContext 中取出错误消息展示
       throw ExceptionFactory.wrapException("Error building SqlSession.", e);
     } finally {
+      // errorConext 作用是记录初始化过程中的错误消息在异常抛出的时候能打印最具体的内容方便定位
+      // 内部是ThreadLocal对象,在启动过程中mybatis 肯定是单线程活动的,所以我们能很好定位错误
       ErrorContext.instance().reset();
       try {
         reader.close();

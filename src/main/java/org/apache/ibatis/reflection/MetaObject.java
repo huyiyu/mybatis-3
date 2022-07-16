@@ -110,7 +110,11 @@ public class MetaObject {
   }
 
   public Object getValue(String name) {
+    // 对. 和[] 扩展切割迭代,
+    // .分割前面是 indexName 后面是children
+    // indexName 部分进一步判断有没有[] 前面的是name 扩起来的是index
     PropertyTokenizer prop = new PropertyTokenizer(name);
+    // 迭代children 内容
     if (prop.hasNext()) {
       MetaObject metaValue = metaObjectForProperty(prop.getIndexedName());
       if (metaValue == SystemMetaObject.NULL_META_OBJECT) {

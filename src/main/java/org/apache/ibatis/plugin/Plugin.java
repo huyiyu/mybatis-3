@@ -41,10 +41,16 @@ public class Plugin implements InvocationHandler {
   }
 
   public static Object wrap(Object target, Interceptor interceptor) {
+    // 解析Interceptor 上的注解
+    // 1.必须有 Intercepts 注解
+    // 2.Intercepts 注解 value必须有Signature注解
+    // 3.提取signature 注解信息的 type,method,args 获得方法列表和类型返回,并使用 map 缓存
     Map<Class<?>, Set<Method>> signatureMap = getSignatureMap(interceptor);
     Class<?> type = target.getClass();
+    // 获取当前类型的所有接口
     Class<?>[] interfaces = getAllInterfaces(type, signatureMap);
     if (interfaces.length > 0) {
+      // 返回当前类型的代理对象
       return Proxy.newProxyInstance(
           type.getClassLoader(),
           interfaces,
@@ -56,10 +62,13 @@ public class Plugin implements InvocationHandler {
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
     try {
+      // 获取缓存的方法列表 判断当前执行的方法的类是否缓存到 signatureMap里面
       Set<Method> methods = signatureMap.get(method.getDeclaringClass());
+      // 是,说明要执行这个代理方法,在内部决定要不要执行,执行前后要怎么处理
       if (methods != null && methods.contains(method)) {
         return interceptor.intercept(new Invocation(target, method, args));
       }
+      // 没有这个方法直接跳过，执行原逻辑
       return method.invoke(target, args);
     } catch (Exception e) {
       throw ExceptionUtil.unwrapThrowable(e);
@@ -69,6 +78,7 @@ public class Plugin implements InvocationHandler {
   private static Map<Class<?>, Set<Method>> getSignatureMap(Interceptor interceptor) {
     Intercepts interceptsAnnotation = interceptor.getClass().getAnnotation(Intercepts.class);
     // issue #251
+    // 不加注解直接抛异常
     if (interceptsAnnotation == null) {
       throw new PluginException("No @Intercepts annotation was found in interceptor " + interceptor.getClass().getName());
     }
@@ -77,6 +87,7 @@ public class Plugin implements InvocationHandler {
     for (Signature sig : sigs) {
       Set<Method> methods = signatureMap.computeIfAbsent(sig.type(), k -> new HashSet<>());
       try {
+        // 找不到方法抛异常
         Method method = sig.type().getMethod(sig.method(), sig.args());
         methods.add(method);
       } catch (NoSuchMethodException e) {

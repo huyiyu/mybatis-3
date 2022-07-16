@@ -55,18 +55,24 @@ public class ParamNameResolver {
   private boolean hasParamAnnotation;
 
   public ParamNameResolver(Configuration config, Method method) {
+    // 使用编译器推断参数名称,要指定编译参数
     this.useActualParamName = config.isUseActualParamName();
+    // 获取所有参数类型
     final Class<?>[] paramTypes = method.getParameterTypes();
+    // 获取所有参数注解
     final Annotation[][] paramAnnotations = method.getParameterAnnotations();
+    //
     final SortedMap<Integer, String> map = new TreeMap<>();
     int paramCount = paramAnnotations.length;
     // get names from @Param annotations
     for (int paramIndex = 0; paramIndex < paramCount; paramIndex++) {
+      // rowBound 和 resultHandler 是特殊参数直接跳过
       if (isSpecialParameter(paramTypes[paramIndex])) {
         // skip special parameters
         continue;
       }
       String name = null;
+      // 获取参数注解,如果有@Param直接获取其value,标记上 hasParamAnnotation
       for (Annotation annotation : paramAnnotations[paramIndex]) {
         if (annotation instanceof Param) {
           hasParamAnnotation = true;
@@ -74,11 +80,13 @@ public class ParamNameResolver {
           break;
         }
       }
+      // 没有@Param注解 那么使用反射获取编译期,编译的参数
       if (name == null) {
         // @Param was not specified.
         if (useActualParamName) {
           name = getActualParamName(method, paramIndex);
         }
+        // 如果还没有,使用当前Map最长序号作为名称
         if (name == null) {
           // use the parameter index as the name ("0", "1", ...)
           // gcode issue #71
@@ -127,8 +135,10 @@ public class ParamNameResolver {
       Object value = args[names.firstKey()];
       return wrapToMapIfCollection(value, useActualParamName ? names.get(0) : null);
     } else {
+      // 本质上是个hashmap 重写了get方法防止未知的参数名
       final Map<String, Object> param = new ParamMap<>();
       int i = 0;
+      // 两套参数名称 param1 param2 或paramResolver 解析的结果
       for (Map.Entry<Integer, String> entry : names.entrySet()) {
         param.put(entry.getValue(), args[entry.getKey()]);
         // add generic param names (param1, param2, ...)

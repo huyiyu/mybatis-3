@@ -75,13 +75,17 @@ public class XMLScriptBuilder extends BaseBuilder {
   }
 
   protected MixedSqlNode parseDynamicTags(XNode node) {
+    // 创建公共的引用对象,用于保存解析的节点
     List<SqlNode> contents = new ArrayList<>();
+    // 获取内部所有的node
     NodeList children = node.getNode().getChildNodes();
     for (int i = 0; i < children.getLength(); i++) {
       XNode child = node.newXNode(children.item(i));
+      // cdata 和text 属于纯内容,使用 TextSqlNode 解析,如果有 ${}认为是动态sql
       if (child.getNode().getNodeType() == Node.CDATA_SECTION_NODE || child.getNode().getNodeType() == Node.TEXT_NODE) {
         String data = child.getStringBody("");
         TextSqlNode textSqlNode = new TextSqlNode(data);
+        // 判断是否有美元符号占位 ${} 如果有就是动态sql
         if (textSqlNode.isDynamic()) {
           contents.add(textSqlNode);
           isDynamic = true;
@@ -89,7 +93,9 @@ public class XMLScriptBuilder extends BaseBuilder {
           contents.add(new StaticTextSqlNode(data));
         }
       } else if (child.getNode().getNodeType() == Node.ELEMENT_NODE) { // issue #628
+        // 所有有元素标签的一定是动态sql 获取node名称
         String nodeName = child.getNode().getNodeName();
+        // 从map里面选择对应的NodeHandler 然后执行方法 handleNode
         NodeHandler handler = nodeHandlerMap.get(nodeName);
         if (handler == null) {
           throw new BuilderException("Unknown element <" + nodeName + "> in SQL statement.");
@@ -126,11 +132,17 @@ public class XMLScriptBuilder extends BaseBuilder {
 
     @Override
     public void handleNode(XNode nodeToHandle, List<SqlNode> targetContents) {
+      // 解析 trimSqlNode 内部的标签得到MixedSqlNode
       MixedSqlNode mixedSqlNode = parseDynamicTags(nodeToHandle);
+      // 获得 prefix
       String prefix = nodeToHandle.getStringAttribute("prefix");
+      // 获得prefixOverrides
       String prefixOverrides = nodeToHandle.getStringAttribute("prefixOverrides");
+      // 获得suffix
       String suffix = nodeToHandle.getStringAttribute("suffix");
+      // 获得suffixOverrides
       String suffixOverrides = nodeToHandle.getStringAttribute("suffixOverrides");
+      // 构建TrimSqlNode 节点并加入公共List
       TrimSqlNode trim = new TrimSqlNode(configuration, mixedSqlNode, prefix, prefixOverrides, suffix, suffixOverrides);
       targetContents.add(trim);
     }

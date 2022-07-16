@@ -46,11 +46,14 @@ import org.apache.ibatis.session.SqlSession;
  */
 public class MapperMethod {
 
+  // 调用过程中创建的对象,会被缓存到 MapperProxy 内部的 MethodCache 中
   private final SqlCommand command;
   private final MethodSignature method;
 
   public MapperMethod(Class<?> mapperInterface, Method method, Configuration config) {
+    // 保存执行的方法名(对应mapper.xml中的id,mapperStatement的id),方法对应的数据库类型(UNKNOWN, INSERT, UPDATE, DELETE, SELECT, FLUSH)
     this.command = new SqlCommand(config, mapperInterface, method);
+    // 解析入参和返回值相关内容
     this.method = new MethodSignature(config, mapperInterface, method);
   }
 
@@ -58,21 +61,28 @@ public class MapperMethod {
     Object result;
     switch (command.getType()) {
       case INSERT: {
+        // 解析参数名称
         Object param = method.convertArgsToSqlCommandParam(args);
+        // 处理影响条数满足返回值是 int long boolean 相关内容
         result = rowCountResult(sqlSession.insert(command.getName(), param));
         break;
       }
       case UPDATE: {
+        // 解析参数名称
         Object param = method.convertArgsToSqlCommandParam(args);
+        // 处理影响条数满足返回值是 int long boolean 相关内容
         result = rowCountResult(sqlSession.update(command.getName(), param));
         break;
       }
       case DELETE: {
+        // 解析参数名称
         Object param = method.convertArgsToSqlCommandParam(args);
+        // 处理影响条数满足返回值是 int long boolean 相关内容
         result = rowCountResult(sqlSession.delete(command.getName(), param));
         break;
       }
       case SELECT:
+        // 要根据方法签名使用特定的 execute 处理
         if (method.returnsVoid() && method.hasResultHandler()) {
           executeWithResultHandler(sqlSession, args);
           result = null;
@@ -227,6 +237,9 @@ public class MapperMethod {
       MappedStatement ms = resolveMappedStatement(mapperInterface, methodName, declaringClass,
           configuration);
       if (ms == null) {
+        // 如果当前不存在对应的MapperStatement,
+        // 说明无论是注解解析还是XML解析都没有
+        // 判断是否有@Flush注解,如果有Type设置为
         if (method.getAnnotation(Flush.class) != null) {
           name = null;
           type = SqlCommandType.FLUSH;
@@ -235,7 +248,10 @@ public class MapperMethod {
               + mapperInterface.getName() + "." + methodName);
         }
       } else {
+        // 从对源码的分析指导 name 就是方法名
         name = ms.getId();
+        // 标示当前执行的方法是一个什么类型的sql执行
+        // UNKNOWN, INSERT, UPDATE, DELETE, SELECT, FLUSH
         type = ms.getSqlCommandType();
         if (type == SqlCommandType.UNKNOWN) {
           throw new BindingException("Unknown execution method for: " + name);
@@ -286,6 +302,7 @@ public class MapperMethod {
     private final ParamNameResolver paramNameResolver;
 
     public MethodSignature(Configuration configuration, Class<?> mapperInterface, Method method) {
+      // 处理返回值类型
       Type resolvedReturnType = TypeParameterResolver.resolveReturnType(method, mapperInterface);
       if (resolvedReturnType instanceof Class<?>) {
         this.returnType = (Class<?>) resolvedReturnType;
@@ -294,14 +311,23 @@ public class MapperMethod {
       } else {
         this.returnType = method.getReturnType();
       }
+      // 返回值类型为空
       this.returnsVoid = void.class.equals(this.returnType);
+      // 返回值类型是集合或数组
       this.returnsMany = configuration.getObjectFactory().isCollection(this.returnType) || this.returnType.isArray();
+      // 返回值类型是一个Cursor 游标
       this.returnsCursor = Cursor.class.equals(this.returnType);
+      // 返回值类型带有Optional
       this.returnsOptional = Optional.class.equals(this.returnType);
+      // 当返回值为Map时,可以直接通过@MapKey 指定作为key返回的
       this.mapKey = getMapKey(method);
+      //  mapkey不为空时说明指定了map返回值,并且有@Mapkey注解
       this.returnsMap = this.mapKey != null;
+      // 如果有rowBounds参数,列表中仅能拥有一个是RowBounds 类型,找到它的index
       this.rowBoundsIndex = getUniqueParamIndex(method, RowBounds.class);
+      //  如果参数列表有ResultHandler,有且仅有一个，用于处理返回值
       this.resultHandlerIndex = getUniqueParamIndex(method, ResultHandler.class);
+      // 初始化参数处理器,解析参数顺序和参数名称作为map存起来
       this.paramNameResolver = new ParamNameResolver(configuration, method);
     }
 

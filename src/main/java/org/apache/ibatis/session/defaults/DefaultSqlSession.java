@@ -193,7 +193,10 @@ public class DefaultSqlSession implements SqlSession {
   public int update(String statement, Object parameter) {
     try {
       dirty = true;
+      // 从configuration 中取出对应的 mapperStatement
       MappedStatement ms = configuration.getMappedStatement(statement);
+      // 如果当前参数是集合或数组类型转换成 map
+      //
       return executor.update(ms, wrapCollection(parameter));
     } catch (Exception e) {
       throw ExceptionFactory.wrapException("Error updating database.  Cause: " + e, e);

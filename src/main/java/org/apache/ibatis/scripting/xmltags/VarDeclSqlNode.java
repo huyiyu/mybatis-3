@@ -17,6 +17,7 @@ package org.apache.ibatis.scripting.xmltags;
 
 /**
  * @author Frank D. Martinez [mnesarco]
+ * 一般用于Bind标签对应的SqlNode,内部支持表达式解析的sqlNode
  */
 public class VarDeclSqlNode implements SqlNode {
 

@@ -36,6 +36,9 @@ import org.apache.ibatis.session.SqlSession;
 public class MapperProxy<T> implements InvocationHandler, Serializable {
 
   private static final long serialVersionUID = -4724728412955527868L;
+  /**
+   * 通过按位或求出调用方法的范围
+   */
   private static final int ALLOWED_MODES = MethodHandles.Lookup.PRIVATE | MethodHandles.Lookup.PROTECTED
       | MethodHandles.Lookup.PACKAGE | MethodHandles.Lookup.PUBLIC;
   private static final Constructor<Lookup> lookupConstructor;
@@ -80,6 +83,7 @@ public class MapperProxy<T> implements InvocationHandler, Serializable {
   public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
     try {
       if (Object.class.equals(method.getDeclaringClass())) {
+        // 判断当前方法是否是object特有方法如果是 则不走下面逻辑
         return method.invoke(this, args);
       } else {
         return cachedInvoker(method).invoke(proxy, method, args, sqlSession);
@@ -100,6 +104,9 @@ public class MapperProxy<T> implements InvocationHandler, Serializable {
       }
 
       return methodCache.computeIfAbsent(method, m -> {
+        // 支持mapper 内部default 方法的调用,提升default方法执行性能
+        // https://www.jianshu.com/p/a9cecf8ba5d9 methodHandler 相关内容
+        // 实际业务敢这么写代码直接打死,这个代码可以不关心具体怎么玩的
         if (m.isDefault()) {
           try {
             if (privateLookupInMethod == null) {
@@ -112,6 +119,8 @@ public class MapperProxy<T> implements InvocationHandler, Serializable {
             throw new RuntimeException(e);
           }
         } else {
+          // 走plainMethod 然后调用MapperMethod的execute方法
+          // 对于default 和Object 内部方法的内容大部分可以忽略,业务里面基本不会出现这种代码
           return new PlainMethodInvoker(new MapperMethod(mapperInterface, method, sqlSession.getConfiguration()));
         }
       });
@@ -154,6 +163,11 @@ public class MapperProxy<T> implements InvocationHandler, Serializable {
   }
 
   private static class DefaultMethodInvoker implements MapperMethodInvoker {
+
+    /**
+     * MethodHandle 速度比反射更快,
+     * https://www.jianshu.com/p/a9cecf8ba5d9
+     */
     private final MethodHandle methodHandle;
 
     public DefaultMethodInvoker(MethodHandle methodHandle) {

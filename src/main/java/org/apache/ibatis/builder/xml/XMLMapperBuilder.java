@@ -91,14 +91,20 @@ public class XMLMapperBuilder extends BaseBuilder {
   }
 
   public void parse() {
+    // 判断当前 resource 是否已经解析过 如果仍没有那么现在解析
     if (!configuration.isResourceLoaded(resource)) {
+      // 具体解析逻辑
       configurationElement(parser.evalNode("/mapper"));
+      // 解析完成后加入已经解析的列表,下次进来这里就不再会执行这个内容了
       configuration.addLoadedResource(resource);
+      // 解析 mapper.xml 中的namespace 然后加入mapperRegistry
       bindMapperForNamespace();
     }
-
+    // 通过再次加载,处理当前mapper.xml 中由于多层嵌套resultMapper 导致的问题
     parsePendingResultMaps();
+    // 通过再次加载,二级缓存定义使用标签加载顺序问题
     parsePendingCacheRefs();
+    // 通过再次加载,解决通过statmentId 上编写ResultMap 但仍然没有定义问题
     parsePendingStatements();
   }
 
@@ -108,16 +114,23 @@ public class XMLMapperBuilder extends BaseBuilder {
 
   private void configurationElement(XNode context) {
     try {
+      // 判空
       String namespace = context.getStringAttribute("namespace");
       if (namespace == null || namespace.isEmpty()) {
         throw new BuilderException("Mapper's namespace cannot be empty");
       }
+
       builderAssistant.setCurrentNamespace(namespace);
       cacheRefElement(context.evalNode("cache-ref"));
+      // 二级缓存相关解析,默认使用本地Map,和LinkedHashMap 做 LRU
       cacheElement(context.evalNode("cache"));
+      // parameterMap 相关解,大部分代码已过时,由parameterType 代替
       parameterMapElement(context.evalNodes("/mapper/parameterMap"));
+      // resultMap 相关解析
       resultMapElements(context.evalNodes("/mapper/resultMap"));
+      // 解析sql 标签,全局生效
       sqlElement(context.evalNodes("/mapper/sql"));
+      // 解析CRUD相关标签
       buildStatementFromContext(context.evalNodes("select|insert|update|delete"));
     } catch (Exception e) {
       throw new BuilderException("Error parsing Mapper XML. The XML location is '" + resource + "'. Cause: " + e, e);
@@ -125,6 +138,7 @@ public class XMLMapperBuilder extends BaseBuilder {
   }
 
   private void buildStatementFromContext(List<XNode> list) {
+    // databasesId 默认从连接元数据里面获取,一般都能获取到
     if (configuration.getDatabaseId() != null) {
       buildStatementFromContext(list, configuration.getDatabaseId());
     }
@@ -201,14 +215,21 @@ public class XMLMapperBuilder extends BaseBuilder {
 
   private void cacheElement(XNode context) {
     if (context != null) {
+      // 类型默认永久的,本质上是本地 HashMapper, 通过alias 指向PerpetualCache
       String type = context.getStringAttribute("type", "PERPETUAL");
       Class<? extends Cache> typeClass = typeAliasRegistry.resolveAlias(type);
+      // 默认使用LRU算法做过期消除处理 表现形式是一个包装类,当每次执行ADD操作时,判断内部是否有
       String eviction = context.getStringAttribute("eviction", "LRU");
       Class<? extends Cache> evictionClass = typeAliasRegistry.resolveAlias(eviction);
+      // 设置刷新周期
       Long flushInterval = context.getLongAttribute("flushInterval");
+      // 设置大小
       Integer size = context.getIntAttribute("size");
+      // 设置读写权限通过读取realOnly 默认可读可写
       boolean readWrite = !context.getBooleanAttribute("readOnly", false);
+      // 设置是否阻塞
       boolean blocking = context.getBooleanAttribute("blocking", false);
+      // 获取children
       Properties props = context.getChildrenAsProperties();
       builderAssistant.useNewCache(typeClass, evictionClass, flushInterval, size, readWrite, blocking, props);
     }
@@ -288,6 +309,7 @@ public class XMLMapperBuilder extends BaseBuilder {
     try {
       return resultMapResolver.resolve();
     } catch (IncompleteElementException e) {
+      // 这里接受解析未完成的异常,主要优化不同Mapper之间共享对象定义的问题,而在整个mapper解析完成后 会再次重试
       configuration.addIncompleteResultMap(resultMapResolver);
       throw e;
     }
